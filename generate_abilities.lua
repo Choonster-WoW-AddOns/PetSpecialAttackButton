@@ -7,6 +7,22 @@ This script requires an installation of Lua with the following libraries:
 	* LuaJSON (https://github.com/harningt/luajson)
 	
 These can all be installed with LuaRocks (http://www.luarocks.org/) if you don't want to install them manually.
+
+Before running this script, you should set the configuration variables below to the appropriate values.
+
+To run this script on Windows, open a command prompt and enter the following command (you can also create a batch file from it):
+
+	lua "C:\Users\Public\Games\World of Warcraft\Interface\AddOns\PetSpecialAttackButton\generate_abilities.lua"
+
+This assumes that Lua is in your PATH. If it isn't, you can either edit your PATH environment variable
+to include the directory with Lua's executable in it or replace `lua` with the full path to the executable.
+It also assumes that WoW is installed in C:\Users\Public\Games, which it may not be.
+
+On Unix, you can make this script executable with `chmod +x` and then double click to run it.
+You can also manually enter the command in your terminal like on Windows.
+
+You may need to configure your terminal to use UTF-8 output if the pet/ability names aren't printed correctly.
+Even if they're not printed correctly, the abilities file should still be generated properly.
 ]==]
 
 -- Set this to your locale code. See Wowpedia for a list of locale codes:
@@ -28,6 +44,7 @@ local WOW_DIR = "C:/Users/Public/Games/World of Warcraft/"
 -------------------
 -- END OF CONFIG --
 -------------------
+-- Do not change anything below here!
 
 local http = require("socket.http")
 local pretty = require("pl.pretty")
@@ -46,6 +63,10 @@ local function request(url)
 	return result
 end
 
+local function fopen(file, mode)
+	return assert(io.open(file, mode))
+end
+
 local function printf(f, ...)
 	print(f:format(...))
 end
@@ -58,10 +79,9 @@ printf(
 local ADDON_DIR = WOW_DIR .. "Interface/AddOns/PetSpecialAttackButton"
 local SPELL_URL = BNET .. "api/wow/spell/%d?locale=" .. LOCALE
 local WOWHEAD_PATTERN = "new Listview%({template: 'pet', id: 'hunter%-pets', computeDataFunc: _, visibleCols: %['abilities'%], data: (%[.+%])}%);"
-local TEMPLATE = assert(io.open(ADDON_DIR .. "/abilities_template.lua")):read("*a")
+local TEMPLATE = fopen(ADDON_DIR .. "/abilities_template.lua"):read("*a")
 
-local wowheadHTML, whCode, whHeaders, whStatus = request(WOWHEAD .. "pets")
-
+local wowheadHTML = request(WOWHEAD .. "pets")
 print("Retrieved Wowhead pets page")
 
 local petsJSON = assert(wowheadHTML:match(WOWHEAD_PATTERN), "ERROR: Failed to extract pet data from Wowhead page") -- Extract the pet data JSON from the page
@@ -103,21 +123,33 @@ print() -- Print a newline
 
 local abilitiesStr = pretty.write(abilities, "\t", true)
 
-local file = assert(io.open(ADDON_DIR .. "/abilities_" .. LOCALE .. ".lua", "w"))
+local abilitiesFileName = "abilities_" .. LOCALE .. ".lua"
+local abilitiesFile = fopen(ADDON_DIR .. "/" .. abilitiesFileName, "w")
 
-local str = TEMPLATE:gsub("$%((%a+)%)", function(var)
+local finalString = TEMPLATE:gsub("$%((%a+)%)", function(var)
 	if var == "ABILITIES" then
 		return abilitiesStr
 	elseif var == "LOCALE" then
 		return LOCALE
 	else
-		file:close()
+		abilitiesFile:close()
 		error(("ERROR: Unknown variable name %q"):format(var))
 	end
 end)
 
-file:write(str)
-file:close()
+abilitiesFile:write(finalString)
+abilitiesFile:close()
+
+local tocFileName = ADDON_DIR .. "/PetSpecialAttackButton.toc"
+
+local tocFile = fopen(tocFileName, "r+") -- Open the file in update mode so the existing text is preserved.
+
+if not tocFile:read("*a"):find(abilitiesFileName, 1, true) then -- The new abilities file isn't in the TOC yet, add it now
+	tocFile:seek("end", -8) -- Move to the beginning of "core.lua" (8 characters from the end of the file)
+	tocFile:write(abilitiesFileName, "\ncore.lua") -- Write the abilities file name to the TOC. This overwrites "core.lua", so we rewrite it as well.
+end
+
+tocFile:close()
 
 if numErrors == 0 then
 	printf("Successfully generated abilities_%s.lua", LOCALE)
