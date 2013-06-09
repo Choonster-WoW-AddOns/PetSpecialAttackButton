@@ -1,6 +1,7 @@
 ﻿local _, class = UnitClass("player")
 if class ~= "HUNTER" then return end
 
+local addon, ns = ...
 local PET_ABILITIES = ns.PET_ABILITIES
 
 local button = CreateFrame("Button", "PetSpecialAttackButton", UIParent, "SecureActionButtonTemplate")

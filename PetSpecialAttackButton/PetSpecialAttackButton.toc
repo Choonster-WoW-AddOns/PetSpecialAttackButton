@@ -2,7 +2,7 @@
 ## Interface: 50300
 ## Notes: Allows you to /click PetSpecialAttackButton in a macro to use your current pet's special ability.
 ## Author: Choonster
-## Version: 1.00
+## Version: @project-version@
 
 abilities_enUS.lua
 core.lua

@@ -4,6 +4,7 @@ if locale ~= "enUS" then return end
 local _, class = UnitClass("player")
 if class ~= "HUNTER" then return end
 
+local _, ns = ...
 ns.PET_ABILITIES = {
 	["Worm"] = "Acid Spit",
 	["Wasp"] = "Sting",

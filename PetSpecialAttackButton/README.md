@@ -4,7 +4,9 @@ Pet Special Attack Button is a WoW AddOn that allows you to use `/click PetSpeci
 
 Installation
 ------------
-Move the `PetSpecialAttackButton` folder containing this file to your `WoW\Interface\AddOns` folder and restart WoW if it was open.
+This AddOn is available from Curse and WoW Interface. The source code is also available on [GitHub](https://github.com/Choonster/PetSpecialAttackButton).
+
+To install, move the `PetSpecialAttackButton` folder containing this file to your `WoW\Interface\AddOns` folder and restart WoW if it was open.
 
 Non-English Locales
 -------------------
