@@ -32,7 +32,14 @@ local LOCALE = "enUS"
 -- Set this to whatever the subtext for special abilities is in your locale
 local SPECIAL_ABILITY = "Special Ability"
 
--- Set this to the address of your locale's Battle.net site. For every region except China, this is "http://<region>.battle.net/". For China, this is "http://www.battlenet.com.cn/"
+-- Se this to whatever the subtext for exotic abilities is in your locale
+local EXOTIC_ABILITY = "Exotic Ability"
+
+-- If true, use exotic abilities instead of special abilities where possible. If false, only use special abilities.
+local USE_EXOTIC = true
+
+-- Set this to the address of your locale's Battle.net site.
+-- For every region except China, this is "http://<region>.battle.net/". For China, this is "http://www.battlenet.com.cn/"
 local BNET = "http://us.battle.net/"
 
 -- Set this to the address of your locale's Wowhead site
@@ -95,24 +102,33 @@ local numErrors = 0
 
 for i, petData in ipairs(pets) do
 	local family = petData.name
+	local isExotic = false
 	printf("\nProcessing family: %q (%d of %d)", family, i, numPets)
 	
 	for i, spellID in ipairs(petData.spells) do
 		if not blacklist[spellID] then
 			local spellJSON = request(SPELL_URL:format(spellID))
 			local spellData = json.decode(spellJSON)
-			if spellData.subtext == SPECIAL_ABILITY then
-				local spellName = spellData.name
-				abilities[family] = spellName
-				printf("Family %q has special ability %q", family, spellName)
+			local subtext = spellData.subtext
+			
+			if USE_EXOTIC and subtext == EXOTIC_ABILITY then -- If we're using exotic abilities and this ability is exotic, use it and break now.
+				abilities[family] = spellData.name
+				isExotic = true
 				break
-			else
+			elseif spellData.subtext == SPECIAL_ABILITY then -- This ability is special, use it for now. If we're not using exotic abilities, break now.
+				abilities[family] = spellData.name
+				if not USE_EXOTIC then break end
+			else -- This isn't an ability we want, blacklist it.
 				blacklist[spellID] = true
 			end
 		end
 	end
 	
-	if not abilities[family] then
+	
+	local spellName = abilities[family]
+	if spellName then
+		printf("Family %q has %s ability %q", family, isExotic and "exotic" or "special", spellName)
+	else
 		printf("ERROR: Couldn't find special ability for family %q", family)
 		numErrors = numErrors + 1
 		abilities[family] = "<ERROR>"
