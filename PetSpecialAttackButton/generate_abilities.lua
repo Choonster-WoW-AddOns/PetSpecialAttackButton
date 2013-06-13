@@ -48,6 +48,12 @@ local WOWHEAD = "http://www.wowhead.com/"
 -- Set this to the location of your WoW folder (using forward slashes as directory separators)
 local WOW_DIR = "C:/Users/Public/Games/World of Warcraft/"
 
+-- A list of pet families and the ability to use for each one. This overrides the automatically-generated ability for the families.
+-- Format is ["Family Name"] = "Ability Name"
+local EXCEPTIONS = {
+	["Water Strider"] = "Surface Trot"
+}
+
 -------------------
 -- END OF CONFIG --
 -------------------
@@ -105,25 +111,29 @@ for i, petData in ipairs(pets) do
 	local isExotic = false
 	printf("\nProcessing family: %q (%d of %d)", family, i, numPets)
 	
-	for i, spellID in ipairs(petData.spells) do
-		if not blacklist[spellID] then
-			local spellJSON = request(SPELL_URL:format(spellID))
-			local spellData = json.decode(spellJSON)
-			local subtext = spellData.subtext
-			
-			if USE_EXOTIC and subtext == EXOTIC_ABILITY then -- If we're using exotic abilities and this ability is exotic, use it and break now.
-				abilities[family] = spellData.name
-				isExotic = true
-				break
-			elseif spellData.subtext == SPECIAL_ABILITY then -- This ability is special, use it for now. If we're not using exotic abilities, break now.
-				abilities[family] = spellData.name
-				if not USE_EXOTIC then break end
-			else -- This isn't an ability we want, blacklist it.
-				blacklist[spellID] = true
+	local exception = EXCEPTIONS[family]
+	if exception then -- Use a hardcoded ability name if we have one for this family
+		abilities[family] = exception
+	else
+		for i, spellID in ipairs(petData.spells) do
+			if not blacklist[spellID] then
+				local spellJSON = request(SPELL_URL:format(spellID))
+				local spellData = json.decode(spellJSON)
+				local subtext = spellData.subtext
+				
+				if USE_EXOTIC and subtext == EXOTIC_ABILITY then -- If we're using exotic abilities and this ability is exotic, use it and break now.
+					abilities[family] = spellData.name
+					isExotic = true
+					break
+				elseif spellData.subtext == SPECIAL_ABILITY then -- This ability is special, use it for now. If we're not using exotic abilities, break now.
+					abilities[family] = spellData.name
+					if not USE_EXOTIC then break end
+				else -- This isn't an ability we want, blacklist it.
+					blacklist[spellID] = true
+				end
 			end
 		end
 	end
-	
 	
 	local spellName = abilities[family]
 	if spellName then
