@@ -25,6 +25,10 @@ You may need to configure your terminal to use UTF-8 output if the pet/ability n
 Even if they're not printed correctly, the abilities file should still be generated properly.
 ]==]
 
+---------------------
+-- START OF CONFIG --
+---------------------
+
 -- Set this to your locale code. See Wowpedia for a list of locale codes:
 -- http://www.wowpedia.org/API_GetLocale
 local LOCALE = "enUS"
@@ -49,14 +53,17 @@ local WOWHEAD = "http://www.wowhead.com/"
 local WOW_DIR = "C:/Users/Public/Games/World of Warcraft/"
 
 -- A list of pet families and the ability to use for each one. This overrides the automatically-generated ability for the families.
--- Format is ["Family Name"] = "Ability Name"
-local EXCEPTIONS = {
-	["Water Strider"] = "Surface Trot"
+-- Format is ["Family Name"] = "Ability Name", (note the comma after the closing quotation mark)
+local OVERRIDES = {
+	["Cat"] = "Prowl",
+	["Shale Spider"] = "Web Wrap",
+	["Silithid"] = "Venom Web Spray",
+	["Water Strider"] = "Surface Trot",
 }
 
--------------------
--- END OF CONFIG --
--------------------
+---------------------
+--  END OF CONFIG  --
+---------------------
 -- Do not change anything below here!
 
 local http = require("socket.http")
@@ -109,11 +116,13 @@ local numErrors = 0
 for i, petData in ipairs(pets) do
 	local family = petData.name
 	local isExotic = false
+	local isOveride = false
 	printf("\nProcessing family: %q (%d of %d)", family, i, numPets)
 	
-	local exception = EXCEPTIONS[family]
-	if exception then -- Use a hardcoded ability name if we have one for this family
-		abilities[family] = exception
+	local override = OVERRIDES[family]
+	if override then -- Use a hardcoded ability name if we have one for this family
+		abilities[family] = override
+		isOveride = true
 	else
 		for i, spellID in ipairs(petData.spells) do
 			if not blacklist[spellID] then
@@ -137,7 +146,7 @@ for i, petData in ipairs(pets) do
 	
 	local spellName = abilities[family]
 	if spellName then
-		printf("Family %q has %s ability %q", family, isExotic and "exotic" or "special", spellName)
+		printf("Family %q has %s ability %q%s", family, isExotic and "exotic" or "special", spellName, isOveride and " (override)" or "")
 	else
 		printf("ERROR: Couldn't find special ability for family %q", family)
 		numErrors = numErrors + 1
