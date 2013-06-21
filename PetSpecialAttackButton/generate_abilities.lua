@@ -157,6 +157,7 @@ end
 print() -- Print a newline
 
 local abilitiesStr = pretty.write(abilities, "\t", true)
+abilitiesStr = abilitiesStr:sub(1, -3) .. ",\n}" -- pretty.write eats the last comma, so we add it back manually
 
 local abilitiesFileName = "abilities_" .. LOCALE .. ".lua"
 local abilitiesFile = fopen(ADDON_DIR .. "/" .. abilitiesFileName, "w")
