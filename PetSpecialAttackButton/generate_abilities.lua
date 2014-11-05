@@ -3,6 +3,7 @@
 --[==[
 This script requires an installation of Lua with the following libraries:
 	* LuaSocket (https://github.com/diegonehab/luasocket)
+	* LuaSec (https://github.com/brunoos/luasec) [LuaRocks install won't work on Windows without tweaking the source and the rockspec]
 	* Penlight (with or without LuaFileSystem) (https://github.com/stevedonovan/Penlight)
 	* LuaJSON (https://github.com/harningt/luajson)
 	
@@ -43,8 +44,8 @@ local EXOTIC_ABILITY = "Exotic Ability"
 local USE_EXOTIC = true
 
 -- Set this to the address of your locale's Battle.net site.
--- For every region except China, this is "http://<region>.battle.net/". For China, this is "http://www.battlenet.com.cn/"
-local BNET = "http://us.battle.net/"
+-- For every region except China, this is "https://<region>.api.battle.net/". For China, this is "http://www.battlenet.com.cn/"
+local BNET = "https://us.api.battle.net/"
 
 -- Set this to the address of your locale's Wowhead site
 local WOWHEAD = "http://www.wowhead.com/"
@@ -55,10 +56,16 @@ local WOW_DIR = "C:/Users/Public/Games/World of Warcraft/"
 -- A list of pet families and the ability to use for each one. This overrides the automatically-generated ability for the families.
 -- Format is ["Family Name"] = "Ability Name", (note the comma after the closing quotation mark)
 local OVERRIDES = {
+	["Basilisk"] = "No Basilisk Special Ability",	
 	["Cat"] = "Prowl",
-	["Shale Spider"] = "Web Wrap",
-	["Silithid"] = "Venom Web Spray",
+	["Dog"] = "Bark of the Wild",
+	["Goat"] = "Sturdiness",
+	["Gorilla"] = "Blessing of Kongs",
+	["Shale Spider"] = "Solid Shell",
+	["Silithid"] = "Tendon Rip",
+	["Sporebat"] = "Energizing Spores",
 	["Water Strider"] = "Surface Trot",
+	["Wolf"] = "Furious Howl",
 }
 
 ---------------------
@@ -66,21 +73,16 @@ local OVERRIDES = {
 ---------------------
 -- Do not change anything below here!
 
+-- The Battle.net API key for this script
+local API_KEY = "thrtxhaarbw729gbccjxgxh8t4gvakxp"
+
 local http = require("socket.http")
+local https = require("ssl.https")
 local pretty = require("pl.pretty")
 local json = require("json")
 
 if package.config:sub(1, 1) == "\\" then -- If we're on Windows, set the code page to UTF-8
 	os.execute("chcp 65001")
-end
-
-local function request(url)
-	local result, code, headers, status = assert(http.request(url))
-	if code ~= 200 then
-		error(("ERROR: Request to %q failed with status %q"):format(url, status), 2)
-	end
-	
-	return result
 end
 
 local function fopen(file, mode)
@@ -97,9 +99,22 @@ printf(
 )
 
 local ADDON_DIR = WOW_DIR .. "Interface/AddOns/PetSpecialAttackButton"
-local SPELL_URL = BNET .. "api/wow/spell/%d?locale=" .. LOCALE
+local API_LOCALE = LOCALE:sub(1, 2) .. "_" .. LOCALE:sub(3, 4) -- GetLocale() returns enUS but the API uses en_US
+local SPELL_URL = BNET .. "wow/spell/%d?locale=" .. API_LOCALE .. "&apikey=" .. API_KEY
 local WOWHEAD_PATTERN = "new Listview%({template: 'pet', id: 'hunter%-pets', computeDataFunc: _, visibleCols: %['abilities'%], data: (%[.+%])}%);"
 local TEMPLATE = fopen(ADDON_DIR .. "/abilities_template.lua"):read("*a")
+
+local function request(url)
+	local result, code, headers, status = assert((url:find("https://", 1, true) and https or http).request(url))
+	if code ~= 200 then
+		print(("ERROR: Request to %q failed with status %d: %q"):format(url, code, status))
+		local f = fopen(ADDON_DIR .. "/generate_errors.txt", "a")
+		f:write(os.date("%Y-%m-%d %H:%M %z"), "\t", url:match("spell/(%d+)%?"), "\t", url, "\t", code, "\t", status, "\n")
+		f:close()
+	end
+	
+	return result
+end
 
 local wowheadHTML = request(WOWHEAD .. "pets")
 print("Retrieved Wowhead pets page")
@@ -134,7 +149,7 @@ for i, petData in ipairs(pets) do
 					abilities[family] = spellData.name
 					isExotic = true
 					break
-				elseif spellData.subtext == SPECIAL_ABILITY then -- This ability is special, use it for now. If we're not using exotic abilities, break now.
+				elseif subtext == SPECIAL_ABILITY then -- This ability is special, use it for now. If we're not using exotic abilities, break now.
 					abilities[family] = spellData.name
 					if not USE_EXOTIC then break end
 				else -- This isn't an ability we want, blacklist it.
