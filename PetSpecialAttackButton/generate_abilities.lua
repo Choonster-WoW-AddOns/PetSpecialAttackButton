@@ -37,7 +37,7 @@ local LOCALE = "enUS"
 -- Set this to whatever the subtext for special abilities is in your locale
 local SPECIAL_ABILITY = "Special Ability"
 
--- Se this to whatever the subtext for exotic abilities is in your locale
+-- Set this to whatever the subtext for exotic abilities is in your locale
 local EXOTIC_ABILITY = "Exotic Ability"
 
 -- If true, use exotic abilities instead of special abilities where possible. If false, only use special abilities.
