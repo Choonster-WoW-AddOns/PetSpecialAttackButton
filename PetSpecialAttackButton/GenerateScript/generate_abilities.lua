@@ -13,7 +13,7 @@ Before running this script, you should set the configuration variables below to 
 
 To run this script on Windows, open a command prompt and enter the following command (you can also create a batch file from it):
 
-	lua "C:\Users\Public\Games\World of Warcraft\Interface\AddOns\PetSpecialAttackButton\generate_abilities.lua"
+	lua "C:\Users\Public\Games\World of Warcraft\Interface\AddOns\PetSpecialAttackButton\GenerateScript\generate_abilities.lua"
 
 This assumes that Lua is in your PATH. If it isn't, you can either edit your PATH environment variable
 to include the directory with Lua's executable in it or replace `lua` with the full path to the executable.
