@@ -1,6 +1,3 @@
-move-folders:
-    PetSpecialAttackButton/PetSpecialAttackButton: PetSpecialAttackButton
-
 enable-nolib-creation: no
 
 package-as: PetSpecialAttackButton
