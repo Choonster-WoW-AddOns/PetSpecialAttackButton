@@ -4,3 +4,7 @@ move-folders:
 enable-nolib-creation: no
 
 package-as: PetSpecialAttackButton
+
+manual-changelog:
+   filename: CHANGELOG.md
+   markup-type: markdown
