@@ -1,3 +1,6 @@
+## 1.11
+- Restructure repository for p3lim's AddOn Packager Proxy
+
 ## 1.10
 - Change generate script to generate abilities for all available locales
 -- Add strict and PrettyPrint depenencies for generate script
