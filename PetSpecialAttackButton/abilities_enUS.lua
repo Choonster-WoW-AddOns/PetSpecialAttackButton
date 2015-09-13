@@ -6,7 +6,7 @@ if class ~= "HUNTER" then return end
 
 local _, ns = ...
 ns.PET_ABILITIES = {
-	["Basilisk"] = "No Basilisk Special Ability",
+	["Basilisk"] = "Stone Scales",
 	["Bat"] = "Sonic Focus",
 	["Bear"] = "Invigorating Roar",
 	["Beetle"] = "Harden Carapace",

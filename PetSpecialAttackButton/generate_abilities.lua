@@ -4,7 +4,7 @@
 This script requires an installation of Lua with the following libraries:
 	* LuaSocket (https://github.com/diegonehab/luasocket)
 	* LuaSec (https://github.com/brunoos/luasec) [LuaRocks install won't work on Windows without tweaking the source and the rockspec]
-	* Penlight (with or without LuaFileSystem) (https://github.com/stevedonovan/Penlight)
+	* Penlight (https://github.com/stevedonovan/Penlight)
 	* LuaJSON (https://github.com/harningt/luajson)
 	
 These can all be installed with LuaRocks (http://www.luarocks.org/) if you don't want to install them manually.
@@ -26,48 +26,36 @@ You may need to configure your terminal to use UTF-8 output if the pet/ability n
 Even if they're not printed correctly, the abilities file should still be generated properly.
 ]==]
 
+local SPELLID_NO_ABILITY = -1
+local SPELLID_ERROR = -2
+
+-- Do not change anything above here!
 ---------------------
 -- START OF CONFIG --
 ---------------------
 
--- Set this to your locale code. See Wowpedia for a list of locale codes:
--- http://www.wowpedia.org/API_GetLocale
-local LOCALE = "enUS"
-
--- Set this to whatever the subtext for special abilities is in your locale
-local SPECIAL_ABILITY = "Special Ability"
-
--- Set this to whatever the subtext for exotic abilities is in your locale
-local EXOTIC_ABILITY = "Exotic Ability"
-
 -- If true, use exotic abilities instead of special abilities where possible. If false, only use special abilities.
 local USE_EXOTIC = true
-
--- Set this to the address of your locale's Battle.net site.
--- For every region except China, this is "https://<region>.api.battle.net/". For China, this is "http://www.battlenet.com.cn/"
-local BNET = "https://us.api.battle.net/"
-
--- Set this to the address of your locale's Wowhead site
-local WOWHEAD = "http://www.wowhead.com/"
 
 -- Set this to the location of your WoW folder (using forward slashes as directory separators)
 local WOW_DIR = "C:/Users/Public/Games/World of Warcraft/"
 
 -- A list of pet families and the ability to use for each one. This overrides the automatically-generated ability for the families.
--- Format is ["Family Name"] = "Ability Name", (note the comma after the closing quotation mark)
+-- Format is [familyID] = spellID, -- Family Name - Ability Name
+-- Use the SPELLID_NO_ABILITY as the spellID if the family has no special ability
 local OVERRIDES = {
-	["Basilisk"] = "No Basilisk Special Ability",	
-	["Cat"] = "Prowl",
-	["Dog"] = "Bark of the Wild",
-	["Goat"] = "Sturdiness",
-	["Gorilla"] = "Blessing of Kongs",
-	["Nether Ray"] = "Netherwinds",
-	["Rylak"] = "Updraft",
-	["Shale Spider"] = "Solid Shell",
-	["Silithid"] = "Tendon Rip",
-	["Sporebat"] = "Energizing Spores",
-	["Water Strider"] = "Surface Trot",
-	["Wolf"] = "Furious Howl",
+	[130] = 159733, -- Basilisk - Stone Scales
+	[2]   = 24450,  -- Cat - Prowl
+	[52]  = 159988, -- Dog - Bark of the Wild
+	[129] = 160014, -- Goat - Sturdiness
+	[9]   = 160017, -- Gorilla - Blessing of Kongs
+	[34]  = 160452, -- Nether Ray - Netherwinds
+	[149] = 160007, -- Rylak - Updraft
+	[55]  = 160063, -- Shale Spider - Solid Shell
+	[41]  = 160065, -- Silithid - Tendon Rip
+	[33]  = 135678, -- Sporebat - Energizing Spores
+	[126] = 126311, -- Water Strider - Surface Trot
+	[1]   = 24604,  -- Wolf - Furious Howl
 }
 
 ---------------------
@@ -75,16 +63,77 @@ local OVERRIDES = {
 ---------------------
 -- Do not change anything below here!
 
+local http = require("socket.http")
+local https = require("ssl.https")
+local json = require("json")
+
+require("pl.app").require_here() -- Search for modules in the script's directory
+local PrettyPrint = require("PrettyPrint")
+require("strict")
+PROXY = nil -- LuaSocket uses PROXY without declaring it, so declare it here
+
 -- The Battle.net API key for this script
 local API_KEY = "thrtxhaarbw729gbccjxgxh8t4gvakxp"
 
-local http = require("socket.http")
-local https = require("ssl.https")
-local pretty = require("pl.pretty")
-local json = require("json")
+local BNET_URLS = {
+	US = "https://us.api.battle.net/",
+	EU = "https://eu.api.battle.net/",
+	TW = "https://tw.api.battle.net/",
+	CN = "https://api.battlenet.com.cn/",
+}
+
+local LOCALES = {
+	-- US
+	enUS = { wowhead = "http://www.wowhead.com/", bnet = BNET_URLS.US }, -- English (US) - Also used for English (UK)
+	esMX = { wowhead = "http://es.wowhead.com/", bnet = BNET_URLS.US }, -- Spanish (Mexico)
+	ptBR = { wowhead = "http://pt.wowhead.com/", bnet = BNET_URLS.US }, -- Brazilian Portuguese
+	
+	-- Europe
+	-- English (UK) returns enUS in-game
+	-- Neither WoW or its API are available in Polish
+	-- WoW isn't available in European Portuguese
+	deDE = { wowhead = "http://de.wowhead.com/", bnet = BNET_URLS.EU }, -- German
+	esES = { wowhead = "http://es.wowhead.com/", bnet = BNET_URLS.EU }, -- Spanish (Spain)
+	frFR = { wowhead = "http://fr.wowhead.com/", bnet = BNET_URLS.EU }, -- French
+	itIT = { wowhead = "http://it.wowhead.com/", bnet = BNET_URLS.EU }, -- Italian
+	ruRU = { wowhead = "http://ru.wowhead.com/", bnet = BNET_URLS.EU }, -- Russian
+	
+	-- Korea
+	-- Wowhead isn't available in Korean
+	
+	-- Taiwan
+	zhTW = { wowhead = "http://cn.wowhead.com/", bnet = BNET_URLS.TW }, -- Traditional Chinese - Pet family names may not be accurate, Wowhead is only available in Simplified Chinese
+	
+	-- China
+	zhCN = { wowhead = "http://cn.wowhead.com/", bnet = BNET_URLS.CN }, -- Simplified Chinese
+}
+
+local petFamilies = {} -- [locale] = { count = N, data = { [familiyID] = familyData } }
+local abilitySpellData = {} -- [locale] = { [spellID] = spellData }
+
+for locale, localeData in pairs(LOCALES) do
+	localeData.apiLocale = locale:sub(1, 2) .. "_" .. locale:sub(3, 4) -- GetLocale() returns enUS but the API uses en_US
+	localeData.petsURL = localeData.wowhead .. "pets"
+	localeData.spellURL = localeData.bnet .. "wow/spell/%d?locale=" .. localeData.apiLocale .. "&apikey=" .. API_KEY
+	
+	abilitySpellData[locale] = {
+		[SPELLID_NO_ABILITY] = { id = SPELLID_NO_ABILITY, name = "No Special Ability" },
+		[SPELLID_ERROR] = { id = SPELLID_ERROR, name = "<ERROR>" },
+	}
+end
+
+local DEFAULT_LOCALE = "enUS"
+
+-- The subtext for special abilities
+local SPECIAL_ABILITY = "Special Ability"
+
+-- The subtext for exotic abilities
+local EXOTIC_ABILITY = "Exotic Ability"
 
 if package.config:sub(1, 1) == "\\" then -- If we're on Windows, set the code page to UTF-8
+	print("Windows detected, setting codepage to UTF-8")
 	os.execute("chcp 65001")
+	print()
 end
 
 local function fopen(file, mode)
@@ -95,117 +144,219 @@ local function printf(f, ...)
 	print(f:format(...))
 end
 
-printf(
-	"Generating abilities file.\nConfig:\n\tLocale code = %q\n\tSpecial ability text = %q\n\tBattle.net address = %q\n\tWowhead address = %q\n\tWoW directory = %q\n",
-	LOCALE, SPECIAL_ABILITY, BNET, WOWHEAD, WOW_DIR
-)
-
 local ADDON_DIR = WOW_DIR .. "Interface/AddOns/PetSpecialAttackButton"
-local API_LOCALE = LOCALE:sub(1, 2) .. "_" .. LOCALE:sub(3, 4) -- GetLocale() returns enUS but the API uses en_US
-local SPELL_URL = BNET .. "wow/spell/%d?locale=" .. API_LOCALE .. "&apikey=" .. API_KEY
 local WOWHEAD_PATTERN = "new Listview%({template: 'pet', id: 'hunter%-pets', computeDataFunc: _, visibleCols: %['abilities'%], data: (%[.+%])}%);"
 local TEMPLATE = fopen(ADDON_DIR .. "/abilities_template.lua"):read("*a")
+local ERROR_PATH = ADDON_DIR .. "/generate_errors.txt"
 
-local function request(url)
-	local result, code, headers, status = assert((url:find("https://", 1, true) and https or http).request(url))
+local hasErrors = false
+
+local familyAbilities = {} -- [familiyID] = spellID
+
+local function request(url, requestType, locale, id)
+	local result, code, headers, status = (url:find("https://", 1, true) and https or http).request(url)
 	if code ~= 200 then
-		print(("ERROR: Request to %q failed with status %d: %q"):format(url, code, status))
-		local f = fopen(ADDON_DIR .. "/generate_errors.txt", "a")
-		f:write(os.date("%Y-%m-%d %H:%M %z"), "\t", url:match("spell/(%d+)%?"), "\t", url, "\t", code, "\t", status, "\n")
+		if type(code) == "string" then
+			printf("ERROR: Request to %q failed: %q", url, code)
+		else
+			printf("ERROR: Request to %q failed with status %d: %q", url, code, status)
+		end
+		
+		hasErrors = true
+		
+		local f = fopen(ERROR_PATH, "a")
+		f:write(os.date("%Y-%m-%d %H:%M:%S %z"), "\t")
+		f:write(requestType, "\t", locale, "\t")
+		
+		if id then
+			f:write(id, "\t")
+		end
+		
+		f:write(url, "\t", code)
+		
+		if status then
+			f:write("\t", status)
+		end
+		
+		f:write("\n")
 		f:close()
 	end
 	
 	return result
 end
 
-local wowheadHTML = request(WOWHEAD .. "pets")
-print("Retrieved Wowhead pets page")
+local function getPetData(locale)
+	local pets = petFamilies[locale]
+	
+	if not pets then
+		local html = request(LOCALES[locale].petsURL, "pets", locale)
+		
+		if not html then
+			return nil
+		end
+		
+		local petsJSON = assert(html:match(WOWHEAD_PATTERN), "ERROR: Failed to extract pet data from Wowhead page for locale " .. locale) -- Extract the pet data JSON from the page
+		local petsArray = json.decode(petsJSON)
+		
+		pets = {count = #petsArray, data = {}}
+		for _, petData in ipairs(petsArray) do
+			pets.data[petData.id] = petData
+		end
+		
+		petFamilies[locale] = pets
+	end
+	
+	return pets
+end
 
-local petsJSON = assert(wowheadHTML:match(WOWHEAD_PATTERN), "ERROR: Failed to extract pet data from Wowhead page") -- Extract the pet data JSON from the page
-local pets = json.decode(petsJSON)
-local numPets = #pets
-printf("Extracted pet data for %d pets", numPets)
+local function getSpellData(locale, spellID)
+	local spellData = abilitySpellData[locale][spellID]
+	
+	if not spellData then
+		local spellJSON = request(LOCALES[locale].spellURL:format(spellID), "spells", locale, spellID)
+		
+		if not spellJSON then
+			return nil
+		end
+		
+		spellData = json.decode(spellJSON)
+		abilitySpellData[locale][spellID] = spellData
+	end
+	
+	return spellData
+end
 
-local abilities = {}
-local blacklist = {} -- Keep a record of spells that aren't special abilities so we don't send a request for every occurrence of a shared basic ability.
 local numErrors = 0
 
-for i, petData in ipairs(pets) do
-	local family = petData.name
+local defaultLocaleData = LOCALES[DEFAULT_LOCALE]
+printf("Config:\n\tDefault locale code = %q\n\tSpecial ability text = %q\n\tExotic Ability Text: %q\n\tBattle.net address = %q\n\tWowhead address = %q\n\tWoW directory = %q\n",
+		DEFAULT_LOCALE, SPECIAL_ABILITY, EXOTIC_ABILITY, defaultLocaleData.bnet, defaultLocaleData.wowhead, WOW_DIR
+)
+
+print("Finding abilities for pet families...")
+
+local count = 0
+local pets = assert(getPetData(DEFAULT_LOCALE), "Failed to retrieve pet data for default locale")
+for familyID, petData in pairs(pets.data) do
+	count = count + 1
+	
+	local familyName = petData.name
+	printf("\nProcessing family: %q (%d of %d)", familyName, count, pets.count)
+	
 	local isExotic = false
 	local isOveride = false
-	printf("\nProcessing family: %q (%d of %d)", family, i, numPets)
 	
-	local override = OVERRIDES[family]
-	if override then -- Use a hardcoded ability name if we have one for this family
-		abilities[family] = override
+	local overrideID = OVERRIDES[familyID]
+	if overrideID then -- Use a hardcoded ability if we have one for this family
+		familyAbilities[familyID] = overrideID
 		isOveride = true
 	else
 		for i, spellID in ipairs(petData.spells) do
-			if not blacklist[spellID] then
-				local spellJSON = request(SPELL_URL:format(spellID))
-				local spellData = json.decode(spellJSON)
+			local spellData = getSpellData(DEFAULT_LOCALE, spellID)
+			if spellData then
 				local subtext = spellData.subtext
 				
 				if USE_EXOTIC and subtext == EXOTIC_ABILITY then -- If we're using exotic abilities and this ability is exotic, use it and break now.
-					abilities[family] = spellData.name
+					familyAbilities[familyID] = spellID
 					isExotic = true
 					break
 				elseif subtext == SPECIAL_ABILITY then -- This ability is special, use it for now. If we're not using exotic abilities, break now.
-					abilities[family] = spellData.name
+					familyAbilities[familyID] = spellID
 					if not USE_EXOTIC then break end
-				else -- This isn't an ability we want, blacklist it.
-					blacklist[spellID] = true
 				end
 			end
 		end
 	end
 	
-	local spellName = abilities[family]
-	if spellName then
-		printf("Family %q has %s ability %q%s", family, isExotic and "exotic" or "special", spellName, isOveride and " (override)" or "")
+	local spellID = familyAbilities[familyID]
+	if spellID then
+		local spellData = getSpellData(DEFAULT_LOCALE, spellID)
+		if spellData then
+			printf("Family %q has %s ability %q%s", familyName, isExotic and "exotic" or "special", spellData.name, isOveride and " (override)" or "")
+		else
+			printf("ERROR: Failed to retrieve spell data for spellID %d", spellID)
+		end
 	else
-		printf("ERROR: Couldn't find special ability for family %q", family)
+		printf("ERROR: Couldn't find special ability for family %q", familyName)
 		numErrors = numErrors + 1
-		abilities[family] = "<ERROR>"
+		familyAbilities[familyID] = SPELLID_ERROR
 	end
 end
 
 print() -- Print a newline
 
-local abilitiesStr = pretty.write(abilities, "\t", true)
-abilitiesStr = abilitiesStr:sub(1, -3) .. ",\n}" -- pretty.write eats the last comma, so we add it back manually
-
-local abilitiesFileName = "abilities_" .. LOCALE .. ".lua"
-local abilitiesFile = fopen(ADDON_DIR .. "/" .. abilitiesFileName, "w")
-
-local finalString = TEMPLATE:gsub("$%((%a+)%)", function(var)
-	if var == "ABILITIES" then
-		return abilitiesStr
-	elseif var == "LOCALE" then
-		return LOCALE
-	else
-		abilitiesFile:close()
-		error(("ERROR: Unknown variable name %q"):format(var))
-	end
-end)
-
-abilitiesFile:write(finalString)
-abilitiesFile:close()
+if numErrors == 0 then
+	print("Successfully found abilities for all pet families.")
+else
+	printf("Encountered %d errors while finding abilities for pet families.", numErrors)
+end
 
 local tocFileName = ADDON_DIR .. "/PetSpecialAttackButton.toc"
-
 local tocFile = fopen(tocFileName, "r+") -- Open the file in update mode so the existing text is preserved.
+local tocContents = tocFile:read("*a")
 
-if not tocFile:read("*a"):find(abilitiesFileName, 1, true) then -- The new abilities file isn't in the TOC yet, add it now
-	tocFile:seek("end", -8) -- Move to the beginning of "core.lua" (8 characters from the end of the file)
-	tocFile:write(abilitiesFileName, "\ncore.lua") -- Write the abilities file name to the TOC. This overwrites "core.lua", so we rewrite it as well.
+for locale, localeData in pairs(LOCALES) do
+	printf("\nGenerating abilities file for locale %s...", locale)
+
+	local pets = getPetData(locale)
+	if not pets then
+		printf("Failed to retrieve pet data, skipping locale %s!", locale)
+	else
+		local count = 0
+		local abilities = {}
+		for familiyID, spellID in pairs(familyAbilities) do
+			count = count + 1
+			
+			local petData = pets.data[familiyID]
+			local familyName = petData.name
+			
+			printf("\nProcessing family: %q (%d of %d)", familyName, count, pets.count)
+			
+			local spellData = getSpellData(locale, spellID)
+			if not spellData then
+				printf("Failed to retrieve spell data for locale %s spellID %s!", locale, spellID)
+				spellData = getSpellData(locale, SPELLID_ERROR)
+			end
+			
+			local spellName = spellData.name
+			abilities[petData.name] = spellName
+			
+			printf("Family %q has ability %q", familyName, spellName)
+		end
+	
+	
+		local abilitiesStr = PrettyPrint(abilities)
+		
+		local abilitiesFileName = "abilities_" .. locale .. ".lua"
+		local abilitiesFile = fopen(ADDON_DIR .. "/" .. abilitiesFileName, "w")
+		
+		local finalString = TEMPLATE:gsub("$%((%a+)%)", function(var)
+			if var == "ABILITIES" then
+				return abilitiesStr
+			elseif var == "LOCALE" then
+				return locale
+			else
+				abilitiesFile:close()
+				error(("ERROR: Unknown variable name %q"):format(var))
+			end
+		end)
+		
+		abilitiesFile:write(finalString)
+		abilitiesFile:close()
+			
+		if not tocContents:find(abilitiesFileName, 1, true) then -- The new abilities file isn't in the TOC yet, add it now
+			tocFile:seek("end", -8) -- Move to the beginning of "core.lua" (8 characters from the end of the file)
+			tocFile:write(abilitiesFileName, "\ncore.lua") -- Write the abilities file name to the TOC. This overwrites "core.lua", so we rewrite it as well.
+		end
+		
+		print("\nFinished generating abilities file")
+	end
 end
 
 tocFile:close()
 
-if numErrors == 0 then
-	printf("Successfully generated abilities_%s.lua", LOCALE)
-else
-	printf("Encountered %d errors while generating abilities_%s.lua", numErrors, LOCALE)
+if hasErrors then
+	printf("Errors written to %s.", ERROR_PATH)
 end
+
+print("Finished generating all abilities files.")
