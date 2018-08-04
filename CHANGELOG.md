@@ -1,5 +1,10 @@
 ## 1.12
 - Bump TOC Interface version to 8.0
+- Update abilities and generate script to 8.0
+	- Remove overrides for abilities that no longer exist
+	- Remove overrides for abilities that are chosen automatically
+	- zhCN abilities haven't been updated because the CN region API is no longer accessible without a CN account
+	- The Rylak pet family is missing from Wowhead, so it's not included in the abilities tables
 - Add .travis.yml file and TOC properties for the BigWigs packager script
 	- https://www.wowinterface.com/forums/showthread.php?t=55801
 
