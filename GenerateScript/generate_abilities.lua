@@ -2,8 +2,8 @@
 
 --[==[
 This script requires an installation of Lua with the following libraries:
-	* LuaSocket (https://github.com/diegonehab/luasocket)
-	* LuaSec (https://github.com/brunoos/luasec) [LuaRocks install won't work on Windows without tweaking the source and the rockspec]
+	* LuaSocket (https://github.com/diegonehab/luasocket) [install the SCM version if using LuaRocks]
+	* LuaSec (https://github.com/brunoos/luasec)
 	* Penlight (https://github.com/stevedonovan/Penlight)
 	* LuaJSON (https://github.com/harningt/luajson)
 	
@@ -46,16 +46,9 @@ local WOW_DIR = "C:/Users/Public/Games/World of Warcraft/"
 local OVERRIDES = {
 	[130] = 159733, -- Basilisk - Stone Scales
 	[2]   = 24450,  -- Cat - Prowl
-	[52]  = 159988, -- Dog - Bark of the Wild
-	[129] = 160014, -- Goat - Sturdiness
-	[9]   = 160017, -- Gorilla - Blessing of Kongs
 	[34]  = 160452, -- Nether Ray - Netherwinds
 	[149] = 160007, -- Rylak - Updraft
-	[55]  = 160063, -- Shale Spider - Solid Shell
 	[41]  = 160065, -- Silithid - Tendon Rip
-	[33]  = 135678, -- Sporebat - Energizing Spores
-	[126] = 126311, -- Water Strider - Surface Trot
-	[1]   = 24604,  -- Wolf - Furious Howl
 }
 
 ---------------------
@@ -70,10 +63,9 @@ local json = require("json")
 require("pl.app").require_here() -- Search for modules in the script's directory
 local PrettyPrint = require("PrettyPrint")
 require("strict")
-PROXY = nil -- LuaSocket uses PROXY without declaring it, so declare it here
 
 -- The Battle.net API key for this script
-local API_KEY = "thrtxhaarbw729gbccjxgxh8t4gvakxp"
+local API_KEY = "s37g43rgb9bchha8epjqbxn8wc9vj98r"
 
 local BNET_URLS = {
 	US = "https://us.api.battle.net/",
@@ -145,7 +137,7 @@ local function printf(f, ...)
 end
 
 local ADDON_DIR = WOW_DIR .. "Interface/AddOns/PetSpecialAttackButton"
-local WOWHEAD_PATTERN = "new Listview%({template: 'pet', id: 'hunter%-pets', computeDataFunc: _, visibleCols: %['abilities'%], data: (%[.+%])}%);"
+local WOWHEAD_PATTERN = "new Listview%({template: 'pet', id: 'pets'.-data: (%[.+%])}%);"
 local TEMPLATE = fopen(ADDON_DIR .. "/abilities_template.lua"):read("*a")
 local ERROR_PATH = ADDON_DIR .. "/generate_errors.txt"
 
