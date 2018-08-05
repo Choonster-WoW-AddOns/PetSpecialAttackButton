@@ -47,7 +47,6 @@ local OVERRIDES = {
 	[130] = 159733, -- Basilisk - Stone Scales
 	[2]   = 24450,  -- Cat - Prowl
 	[34]  = 160452, -- Nether Ray - Netherwinds
-	[149] = 160007, -- Rylak - Updraft
 	[41]  = 160065, -- Silithid - Tendon Rip
 }
 
