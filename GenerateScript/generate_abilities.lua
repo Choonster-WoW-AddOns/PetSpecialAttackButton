@@ -13,7 +13,7 @@ Before running this script, you should set the configuration variables below to 
 
 To run this script on Windows, open a command prompt and enter the following command (you can also create a batch file from it):
 
-	lua "C:\Users\Public\Games\World of Warcraft\Interface\AddOns\PetSpecialAttackButton\GenerateScript\generate_abilities.lua"
+	lua "C:\Users\Public\Games\World of Warcraft\_retail_\Interface\AddOns\PetSpecialAttackButton\GenerateScript\generate_abilities.lua"
 
 This assumes that Lua is in your PATH. If it isn't, you can either edit your PATH environment variable
 to include the directory with Lua's executable in it or replace `lua` with the full path to the executable.
@@ -38,11 +38,11 @@ local SPELLID_ERROR = -2
 local USE_EXOTIC = true
 
 -- Set this to the location of your WoW folder (using forward slashes as directory separators)
-local WOW_DIR = "C:/Users/Public/Games/World of Warcraft/"
+local WOW_DIR = "C:/Users/Public/Games/World of Warcraft/_retail_/"
 
 -- A list of pet families and the ability to use for each one. This overrides the automatically-generated ability for the families.
 -- Format is [familyID] = spellID, -- Family Name - Ability Name
--- Use the SPELLID_NO_ABILITY as the spellID if the family has no special ability
+-- Use SPELLID_NO_ABILITY as the spellID if the family has no special ability
 local OVERRIDES = {
 	[130] = 159733, -- Basilisk - Stone Scales
 	[2]   = 24450,  -- Cat - Prowl
@@ -55,7 +55,9 @@ local OVERRIDES = {
 ---------------------
 -- Do not change anything below here!
 
-local http = require("socket.http")
+local mime = require("mime")
+local ltn12 = require("ltn12")
+local url = require("socket.url")
 local https = require("ssl.https")
 local json = require("json")
 
@@ -63,40 +65,49 @@ require("pl.app").require_here() -- Search for modules in the script's directory
 local PrettyPrint = require("PrettyPrint")
 require("strict")
 
--- The Battle.net API key for this script
-local API_KEY = "s37g43rgb9bchha8epjqbxn8wc9vj98r"
+-- The OAuth Client ID and Client Secret for this script
+local CLIENT_ID = "189db5190c0e4e1f8a6279b09c4d2e05"
+local CLIENT_SECRET = require("client_secret")
 
-local BNET_URLS = {
-	US = "https://us.api.battle.net/",
-	EU = "https://eu.api.battle.net/",
-	TW = "https://tw.api.battle.net/",
-	CN = "https://api.battlenet.com.cn/",
+local OAUTH_URLS = {
+	US   = "https://us.battle.net/",
+	EU   = "https://eu.battle.net/",
+	APAC = "https://apac.battle.net/",
+	CN   = "https://www.battlenet.com.cn/",
+}
+
+local API_URLS = {
+	US = "https://us.api.blizzard.com/",
+	EU = "https://eu.api.blizzard.com/",
+	KR = "https://kr.api.blizzard.com/",
+	TW = "https://tw.api.blizzard.com/",
+	CN = "https://gateway.battlenet.com.cn/",
 }
 
 local LOCALES = {
 	-- US
-	enUS = { wowhead = "http://www.wowhead.com/", bnet = BNET_URLS.US }, -- English (US) - Also used for English (UK)
-	esMX = { wowhead = "http://es.wowhead.com/", bnet = BNET_URLS.US }, -- Spanish (Mexico)
-	ptBR = { wowhead = "http://pt.wowhead.com/", bnet = BNET_URLS.US }, -- Brazilian Portuguese
+	enUS = { wowhead = "https://www.wowhead.com/", oauth = OAUTH_URLS.US, api = API_URLS.US }, -- English (US) - Also used for English (UK)
+	esMX = { wowhead = "https://es.wowhead.com/",  oauth = OAUTH_URLS.US, api = API_URLS.US }, -- Spanish (Mexico/Latin America)
+	ptBR = { wowhead = "https://pt.wowhead.com/",  oauth = OAUTH_URLS.US, api = API_URLS.US }, -- Brazilian Portuguese
 	
 	-- Europe
 	-- English (UK) returns enUS in-game
 	-- Neither WoW or its API are available in Polish
-	-- WoW isn't available in European Portuguese
-	deDE = { wowhead = "http://de.wowhead.com/", bnet = BNET_URLS.EU }, -- German
-	esES = { wowhead = "http://es.wowhead.com/", bnet = BNET_URLS.EU }, -- Spanish (Spain)
-	frFR = { wowhead = "http://fr.wowhead.com/", bnet = BNET_URLS.EU }, -- French
-	itIT = { wowhead = "http://it.wowhead.com/", bnet = BNET_URLS.EU }, -- Italian
-	ruRU = { wowhead = "http://ru.wowhead.com/", bnet = BNET_URLS.EU }, -- Russian
+	ptPT = { wowhead = "https://pt.wowhead.com/", oauth = OAUTH_URLS.EU, api = API_URLS.EU }, -- Portuguese (Portugal) - Pet family names may not be accurate, Wowhead is only available in Brazilian Portuguese
+	deDE = { wowhead = "https://de.wowhead.com/", oauth = OAUTH_URLS.EU, api = API_URLS.EU }, -- German
+	esES = { wowhead = "https://es.wowhead.com/", oauth = OAUTH_URLS.EU, api = API_URLS.EU }, -- Spanish (Spain) - Pet family names may not be accurate, Wowhead is only available in Mexican Spanish
+	frFR = { wowhead = "https://fr.wowhead.com/", oauth = OAUTH_URLS.EU, api = API_URLS.EU }, -- French
+	itIT = { wowhead = "https://it.wowhead.com/", oauth = OAUTH_URLS.EU, api = API_URLS.EU }, -- Italian
+	ruRU = { wowhead = "https://ru.wowhead.com/", oauth = OAUTH_URLS.EU, api = API_URLS.EU }, -- Russian
 	
 	-- Korea
-	-- Wowhead isn't available in Korean
+	krKO = { wowhead = "https://ko.wowhead.com/", oauth = OAUTH_URLS.APAC, api = API_URLS.KR }, -- Korean
 	
 	-- Taiwan
-	zhTW = { wowhead = "http://cn.wowhead.com/", bnet = BNET_URLS.TW }, -- Traditional Chinese - Pet family names may not be accurate, Wowhead is only available in Simplified Chinese
+	zhTW = { wowhead = "https://cn.wowhead.com/", oauth = OAUTH_URLS.APAC, api = API_URLS.TW }, -- Traditional Chinese - Pet family names may not be accurate, Wowhead is only available in Simplified Chinese
 	
 	-- China
-	zhCN = { wowhead = "http://cn.wowhead.com/", bnet = BNET_URLS.CN }, -- Simplified Chinese
+	zhCN = { wowhead = "https://cn.wowhead.com/", oauth = OAUTH_URLS.CN, api = API_URLS.CN }, -- Simplified Chinese
 }
 
 local petFamilies = {} -- [locale] = { count = N, data = { [familiyID] = familyData } }
@@ -105,7 +116,8 @@ local abilitySpellData = {} -- [locale] = { [spellID] = spellData }
 for locale, localeData in pairs(LOCALES) do
 	localeData.apiLocale = locale:sub(1, 2) .. "_" .. locale:sub(3, 4) -- GetLocale() returns enUS but the API uses en_US
 	localeData.petsURL = localeData.wowhead .. "pets"
-	localeData.spellURL = localeData.bnet .. "wow/spell/%d?locale=" .. localeData.apiLocale .. "&apikey=" .. API_KEY
+	localeData.tokenURL = localeData.oauth .. "oauth/token"
+	localeData.spellURL = localeData.api .. "wow/spell/%d?locale=" .. localeData.apiLocale
 	
 	abilitySpellData[locale] = {
 		[SPELLID_NO_ABILITY] = { id = SPELLID_NO_ABILITY, name = "No Special Ability" },
@@ -144,9 +156,13 @@ local hasErrors = false
 
 local familyAbilities = {} -- [familiyID] = spellID
 
-local function request(url, requestType, locale, id)
-	local result, code, headers, status = (url:find("https://", 1, true) and https or http).request(url)
-	if code ~= 200 then
+local tokenRequest, apiRequest, wowheadRequest
+do
+	local TOKEN_AUTH_HEADER = "Basic " .. mime.b64(CLIENT_ID .. ":" .. CLIENT_SECRET)
+	
+	local accessToken
+	
+	local function logError(url, requestType, locale, id, code, status)
 		if type(code) == "string" then
 			printf("ERROR: Request to %q failed: %q", url, code)
 		else
@@ -173,14 +189,92 @@ local function request(url, requestType, locale, id)
 		f:close()
 	end
 	
-	return result
+	local function request(options)
+		local resultBuffer = {}
+		options.sink = ltn12.sink.table(resultBuffer)
+		
+		local success, code, headers, status = https.request(options)
+		
+		return table.concat(resultBuffer), code, headers, status
+	end
+	
+	tokenRequest = function(locale)
+		local requestURL = LOCALES[locale].tokenURL
+		local requestBody = "grant_type=client_credentials"
+		
+		local resultJSON, code, headers, status = request{
+			url = requestURL,
+			method = "POST",
+			headers = {
+				["Content-Type"] = "application/x-www-form-urlencoded",
+				["Content-Length"] = #requestBody,
+				["Authorization"] = TOKEN_AUTH_HEADER,
+			},
+			source = ltn12.source.string(requestBody),
+		}
+		
+		if code ~= 200 then
+			logError(requestURL, "token", locale, "<token>", code, status)
+			return false
+		end
+		
+		local result = json.decode(resultJSON)
+		accessToken = result.access_token
+		
+		return true
+	end
+	
+	local function _apiRequest(url, requestType, locale, id, tryRefreshToken)
+		local requestHeaders = {}
+		
+		if accessToken then
+			requestHeaders["Authorization"] = "Bearer " .. accessToken
+		end
+		
+		local resultJSON, code, headers, status = request{
+			url = url,
+			headers = requestHeaders,
+		}
+		
+		if code == 401 and tryRefreshToken then -- If the token has expired and we're not already retrying a request,
+			local success = tokenRequest(locale) -- Request a new token
+			if success then -- If the new token was successfully requested, retry the original request
+				return _apiRequest(url, requestType, locale, id, false)
+			end
+		end
+		
+		if code ~= 200 then
+			logError(url, requestType, locale, id, code, status)
+		end
+		
+		local result = resultJSON and json.decode(resultJSON) or nil
+		
+		return result
+	end
+	
+	apiRequest = function(url, requestType, locale, id)
+		local result = _apiRequest(url, requestType, locale, id, true)
+		return result
+	end
+	
+	wowheadRequest = function(url, requestType, locale)
+		local result, code, headers, status = request{
+			url = url
+		}
+		
+		if code ~= 200 then
+			logError(url, requestType, locale, nil, code, status)
+		end
+		
+		return result
+	end
 end
 
 local function getPetData(locale)
 	local pets = petFamilies[locale]
 	
 	if not pets then
-		local html = request(LOCALES[locale].petsURL, "pets", locale)
+		local html = wowheadRequest(LOCALES[locale].petsURL, "pets", locale)
 		
 		if not html then
 			return nil
@@ -204,13 +298,8 @@ local function getSpellData(locale, spellID)
 	local spellData = abilitySpellData[locale][spellID]
 	
 	if not spellData then
-		local spellJSON = request(LOCALES[locale].spellURL:format(spellID), "spells", locale, spellID)
+		spellData = apiRequest(LOCALES[locale].spellURL:format(spellID), "spells", locale, spellID)
 		
-		if not spellJSON then
-			return nil
-		end
-		
-		spellData = json.decode(spellJSON)
 		abilitySpellData[locale][spellID] = spellData
 	end
 	
@@ -220,14 +309,23 @@ end
 local numErrors = 0
 
 local defaultLocaleData = LOCALES[DEFAULT_LOCALE]
-printf("Config:\n\tDefault locale code = %q\n\tSpecial ability text = %q\n\tExotic Ability Text: %q\n\tBattle.net address = %q\n\tWowhead address = %q\n\tWoW directory = %q\n",
-		DEFAULT_LOCALE, SPECIAL_ABILITY, EXOTIC_ABILITY, defaultLocaleData.bnet, defaultLocaleData.wowhead, WOW_DIR
-)
+print("Config:")
+printf("\tDefault locale code = %q", DEFAULT_LOCALE)
+printf("\tSpecial ability text = %q", SPECIAL_ABILITY)
+printf("\tExotic Ability Text = %q", EXOTIC_ABILITY)
+printf("\tBattle.net OAuth address = %q", defaultLocaleData.oauth)
+printf("\tBattle.net API address = %q", defaultLocaleData.api)
+printf("\tWowhead address = %q", defaultLocaleData.wowhead)
+printf("\tWoW directory = %q", WOW_DIR)
+print()
 
 print("Finding abilities for pet families...")
 
 local count = 0
 local pets = assert(getPetData(DEFAULT_LOCALE), "Failed to retrieve pet data for default locale")
+
+tokenRequest(DEFAULT_LOCALE)
+
 for familyID, petData in pairs(pets.data) do
 	count = count + 1
 	
@@ -293,6 +391,8 @@ for locale, localeData in pairs(LOCALES) do
 	if not pets then
 		printf("Failed to retrieve pet data, skipping locale %s!", locale)
 	else
+		tokenRequest(locale)
+		
 		local count = 0
 		local abilities = {}
 		for familiyID, spellID in pairs(familyAbilities) do
