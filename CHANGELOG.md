@@ -1,3 +1,14 @@
+## 1.13
+- Bump TOC Interface version to 8.1
+- Remove the Rylak override from the generate script
+	- The Rylak family has been merged into the Chimaera family in 8.0
+- Update generate script to new use new Battle.net API
+	- Add Portuguese (Portugal) and Korean locales
+	- Update WoW folder paths to match the new structure introduced in 8.1
+- Update abilities to 8.1
+	- zhCN (Simplified Chinese) had to be updated from Wowhead manually as the China region's Battle.net API isn't working
+- Add abilities for Portuguese (Portugal) and Korean locales
+
 ## 1.12
 - Bump TOC Interface version to 8.0
 - Update abilities and generate script to 8.0
