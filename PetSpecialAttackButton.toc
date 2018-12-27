@@ -1,5 +1,5 @@
 ## Title: Pet Special Attack Button
-## Interface: 80000
+## Interface: 80100
 ## Notes: Allows you to /click PetSpecialAttackButton in a macro to use your current pet's special ability.
 ## Author: Choonster
 ## Version: @project-version@
