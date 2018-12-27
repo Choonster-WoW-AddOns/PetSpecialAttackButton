@@ -11,13 +11,17 @@ abilities_enUS.lua
 abilities_esMX.lua
 abilities_ptBR.lua
 
+abilities_ptPT.lua
 abilities_deDE.lua
 abilities_esES.lua
 abilities_frFR.lua
 abilities_itIT.lua
 abilities_ruRU.lua
 
-abilities_zhCN.lua
+abilities_krKO.lua
+
 abilities_zhTW.lua
+
+abilities_zhCN.lua
 
 core.lua
