@@ -10,6 +10,7 @@ ns.PET_ABILITIES = {
 	["Araignée de schiste"] = "Carapace solide",
 	["Basilic"] = "Écailles de pierre",
 	["Bovin"] = "Robustesse de Niuzao",
+	["Bête de sang"] = "Trait de sang",
 	["Cerf"] = "Grâce de la nature",
 	["Charognard"] = "Hurlement sanguinaire",
 	["Chauve-souris"] = "Déflagration sonore",

@@ -9,6 +9,7 @@ ns.PET_ABILITIES = {
 	["Basilisco"] = "Scaglie di Pietra",
 	["Bestia Eterea"] = "Cura Spirituale",
 	["Bestia dei Fiumi"] = "Morso Terribile",
+	["Bestia di Sangue"] = "Dardo di Sangue",
 	["Cane"] = "Fauci a Tenaglia",
 	["Caprone"] = "Ruvidità",
 	["Cervo"] = "Grazia della Natura",

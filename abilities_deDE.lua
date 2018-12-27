@@ -9,6 +9,7 @@ ns.PET_ABILITIES = {
 	["Aasvogel"] = "Blutiges Kreischen",
 	["Affe"] = "Urtümliche Beweglichkeit",
 	["Basilisk"] = "Steinschuppen",
+	["Blutbestie"] = "Blutblitz",
 	["Bär"] = "Dickes Fell",
 	["Drachenfalke"] = "Drachenlist",
 	["Eber"] = "Borsten aufstellen",

@@ -11,6 +11,7 @@ ns.PET_ABILITIES = {
 	["Bear"] = "Thick Fur",
 	["Beetle"] = "Harden Carapace",
 	["Bird of Prey"] = "Talon Rend",
+	["Blood Beast"] = "Blood Bolt",
 	["Boar"] = "Bristle",
 	["Carrion Bird"] = "Bloody Screech",
 	["Cat"] = "Prowl",

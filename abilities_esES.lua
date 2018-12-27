@@ -13,6 +13,7 @@ ns.PET_ABILITIES = {
 	["Ave rapaz"] = "Desgarro de garfa",
 	["Avispa"] = "Picadura tóxica",
 	["Basilisco"] = "Escamas de piedra",
+	["Bestia de sangre"] = "Descarga de sangre",
 	["Bestia espíritu"] = "Aliviar espíritu",
 	["Bestia fluvial"] = "Mordedura sanguinolenta",
 	["Buey"] = "Entereza de Niuzao",
